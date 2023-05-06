@@ -1,4 +1,4 @@
-from audio import AudioSystem
+from audio import AudioSystem, Envelope, Sound
 from samples import Sample, SampleFile
 from pathlib import Path
 from typing import Dict
@@ -41,7 +41,8 @@ class Instrument:
                 sample_note = keys[ind-1]
         
         sample = Sample(self.sample_files[sample_note], note)
-        self.audio_system.play(sample, velocity)
+        envelope = Envelope(velocity, self.audio_system.samplerate * 0.01, self.audio_system.samplerate * 0.05, 0.5, self.audio_system.samplerate * 0.5, self.audio_system.samplerate * 4)
+        self.audio_system.play(Sound(sample, envelope))
 
     def note_off(self, note: int) -> None:
         pass
