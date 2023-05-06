@@ -92,7 +92,7 @@ class SampleFile:
             raise Exception(f"Only support 1 or 2 channel audio samples, not {self.channels}")
 
 
-class Sound:
+class Sample:
     def __init__(self, filename, samplenote, midinote):
         self.sample_file = SampleFile(filename, samplenote)
         self.midinote = midinote
@@ -101,6 +101,7 @@ class Sound:
             self.left_data = self.sample_file.left_data
             self.right_data = self.sample_file.right_data
         else:
+            # Linear interpolation to alter sample pitch
             factor = pow(2, ((self.midinote - self.sample_file.samplenote)/12))
             self.left_data = np.array(np.interp(
                 [i*factor for i in range(1, int(self.sample_file.nframes/factor))],
