@@ -1,5 +1,6 @@
 from audio import AudioSystem
 from instrument import Instrument
+from pathlib import Path
 import time
 
 
@@ -11,9 +12,9 @@ except:
     print('Failed to open audio system')
     exit(1)
 
-saw_synth = Instrument(audio, 'data/saw.wav', 36)
+saw_synth = Instrument(audio, Path('data/saw/'))
 
-for i in range(60, 64):
+for i in range(30, 80, 4):
     saw_synth.note_on(i, 50)
     time.sleep(1)
 time.sleep(4)

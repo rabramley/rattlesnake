@@ -56,8 +56,9 @@ class waveread(wave.Wave_read):
     def getloops(self):
         return self._loops
 
+
 class SampleFile:
-    def __init__(self, filename, samplenote):
+    def __init__(self, filename: str, samplenote: int):
         wf = waveread(filename)
         self.fname = filename
         self.samplenote = samplenote
@@ -93,9 +94,9 @@ class SampleFile:
 
 
 class Sample:
-    def __init__(self, filename, samplenote, midinote):
-        self.sample_file = SampleFile(filename, samplenote)
-        self.midinote = midinote
+    def __init__(self, sample_file: SampleFile, midinote: int):
+        self.sample_file: SampleFile = sample_file
+        self.midinote: int = midinote
 
         if self.sample_file.samplenote == self.midinote:
             self.left_data = self.sample_file.left_data
