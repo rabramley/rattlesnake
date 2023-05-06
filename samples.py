@@ -37,14 +37,14 @@ class waveread(wave.Wave_read):
                 self._data_seek_needed = 0
             elif chunkname == b'cue ':
                 numcue = struct.unpack('<i', chunk.read(4))[0]
-                for i in range(numcue):
-                    id, position, datachunkid, chunkstart, blockstart, sampleoffset = struct.unpack('<iiiiii', chunk.read(24))
+                for _ in range(numcue):
+                    _, _, _, _, _, sampleoffset = struct.unpack('<iiiiii', chunk.read(24))
                     self._cue.append(sampleoffset)
             elif chunkname == b'smpl':
-                manuf, prod, sampleperiod, midiunitynote, midipitchfraction, smptefmt, smpteoffs, numsampleloops, samplerdata = struct.unpack(
+                _, _, _, _, _, _, _, numsampleloops, _ = struct.unpack(
                     '<iiiiiiiii', chunk.read(36))
-                for i in range(numsampleloops):
-                    cuepointid, type, start, end, fraction, playcount = struct.unpack('<iiiiii', chunk.read(24))
+                for _ in range(numsampleloops):
+                    _, _, start, end, _, _ = struct.unpack('<iiiiii', chunk.read(24))
                     self._loops.append([start, end])
             chunk.skip()
         if not self._fmt_chunk_read or not self._data_chunk:
@@ -56,11 +56,10 @@ class waveread(wave.Wave_read):
     def getloops(self):
         return self._loops
 
-class Sound:
-    def __init__(self, filename, samplenote, midinote):
+class SampleFile:
+    def __init__(self, filename, samplenote):
         wf = waveread(filename)
         self.fname = filename
-        self.midinote = midinote
         self.samplenote = samplenote
         self.channels = wf.getnchannels()
         self.sample_width = wf.getsampwidth()
@@ -75,20 +74,6 @@ class Sound:
         self.set_data(wf.readframes(self.nframes))
         
         wf.close()
-
-        if self.samplenote != self.midinote:
-            factor = pow(2, ((self.midinote - self.samplenote)/12))
-            self.left_data = np.array(np.interp(
-                [i*factor for i in range(1, int(self.nframes/factor))],
-                range(1, self.nframes),
-                self.left_data,
-            ), np.float32)
-            self.right_data = np.array(np.interp(
-                [i*factor for i in range(1, int(self.nframes/factor))],
-                range(1, self.nframes),
-                self.right_data,
-            ), np.float32)
-            self.nframes = len(self.right_data)
 
     def set_data(self, data):
         if self.sample_width != 2:
@@ -105,3 +90,27 @@ class Sound:
             self.right_data = np.array(data, np.float32)
         else:
             raise Exception(f"Only support 1 or 2 channel audio samples, not {self.channels}")
+
+
+class Sound:
+    def __init__(self, filename, samplenote, midinote):
+        self.sample_file = SampleFile(filename, samplenote)
+        self.midinote = midinote
+
+        if self.sample_file.samplenote == self.midinote:
+            self.left_data = self.sample_file.left_data
+            self.right_data = self.sample_file.right_data
+        else:
+            factor = pow(2, ((self.midinote - self.sample_file.samplenote)/12))
+            self.left_data = np.array(np.interp(
+                [i*factor for i in range(1, int(self.sample_file.nframes/factor))],
+                range(1, self.sample_file.nframes),
+                self.sample_file.left_data,
+            ), np.float32)
+            self.right_data = np.array(np.interp(
+                [i*factor for i in range(1, int(self.sample_file.nframes/factor))],
+                range(1, self.sample_file.nframes),
+                self.sample_file.right_data,
+            ), np.float32)
+
+        self.nframes = len(self.right_data)
