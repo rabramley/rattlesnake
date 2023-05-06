@@ -10,6 +10,7 @@ class Instrument:
         self.audio_system: AudioSystem = audio_system
         self.sample_folder_path: Path = sample_folder_path
         self.sample_files: Dict[int, SampleFile] = self._load_sample_files()
+        self.sounds: Dict[int, Sound] = {}
 
     def _load_sample_files(self) -> Dict[int, SampleFile]:
         result: Dict[int, SampleFile] = {}
@@ -44,8 +45,17 @@ class Instrument:
 
     def note_on(self, note: int, velocity: int) -> None:
         sample = self._get_sample_file(note)
-        envelope = Envelope(velocity, self.audio_system.samplerate * 0.01, self.audio_system.samplerate * 0.05, 0.5, self.audio_system.samplerate * 0.5, self.audio_system.samplerate * 4)
-        self.audio_system.play(Sound(sample, envelope))
+        envelope = Envelope(velocity, self.audio_system.samplerate * 0.5, self.audio_system.samplerate * 0.5, 0.5, self.audio_system.samplerate * 2)
+
+        sound = Sound(sample, envelope)
+
+        self.sounds[note] = sound
+        self.audio_system.play(sound)
 
     def note_off(self, note: int) -> None:
-        pass
+        sound = self.sounds[note]
+
+        if sound:
+            sound.note_off()
+
+        self.sounds.pop(note)

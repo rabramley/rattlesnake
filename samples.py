@@ -91,9 +91,6 @@ class SampleFile:
             self.right_data = np.array(data, np.float32)
         else:
             raise Exception(f"Only support 1 or 2 channel audio samples, not {self.channels}")
-    
-    def __str__(self) -> str:
-        return f"SampleFile('{self.filename}', {self.samplenote})"
 
 
 class Sample:
@@ -119,6 +116,3 @@ class Sample:
             ), np.float32)
 
         self.nframes = len(self.right_data)
-    
-    def __str__(self) -> str:
-        return f"Sample({self.sample_file}, {self.midinote})"

@@ -7,47 +7,71 @@ from samples import Sample
 class Envelope:
     # Refactor so that an envelope is only a view on the
     # a shared envelope for the instrument
-    def __init__(self, velocity, attack, decay, sustain, hold, release):
+    def __init__(self, velocity, attack, decay, sustain, release):
         self.velocity = velocity
         self.velocity_gain = self.velocity / 127
         self.attack = attack
         self.decay = decay
         self.sustain = sustain
-        self.hold = hold
         self.release = release
-        self.position = 0
+        self.release_start_position = -1
+        self.release_end_position = -1
 
         self._ad = self.attack + self.decay
-        self._adh = self._ad + self.hold
-        self._adhr = self._adh + self.release
 
-    def subpath(self, frames):
-        start = self.position
-        self.position += frames
-        return np.array(np.interp(
-            range(start, self.position),
-            [0, self.attack, self._ad, self._adh, self._adhr],
-            [0.0, self.velocity_gain, self.sustain * self.velocity_gain, self.sustain * self.velocity_gain, 0.0],
-        ), np.float32)
+    def set_release_start(self, position):
+        self.release_start_position = position
+        self.release_end_position = position + self.release
+
+    def over_range(self, position, frame_count):
+        end = position + frame_count
+
+        if self.release_start_position < 0:
+            return self._pre_release_over_range(position, end)
+        else:
+            return self._post_release_over_range(position, end)
     
-    def complete(self):
-        return self.position >= self._adhr
+    def _pre_release_over_range(self, start, end):
+        return np.array(np.interp(
+            range(start, end),
+            [0, self.attack, self._ad],
+            [0.0, self.velocity_gain, self.sustain * self.velocity_gain],
+        ), np.float32)
+
+    def _post_release_over_range(self, start, end):
+        return np.array(np.interp(
+            range(start, end),
+            [self.release_start_position, self.release_end_position],
+            [self.sustain * self.velocity_gain, 0.0],
+        ), np.float32)
+
+    def complete_at(self, position):
+        return self.release_start_position >= 0 and position - self.release_start_position >= self.release
 
 
 class Sound:
     def __init__(self, sample: Sample, envelope: Envelope):
         self.sample = sample
         self.envelope = envelope
-        self.pos = 0
-    
-    def absolute_position(self):
-        return self.pos % self.sample.nframes
+        self.position = 0
     
     def complete(self):
-        return self.envelope.complete()
+        return self.envelope.complete_at(self.position)
     
-    def __str__(self) -> str:
-        return f"Sound({self.sample})"
+    def over_range(self, frame_count) -> tuple[np.ndarray, np.ndarray]:
+        abs_pos =  self.position % self.sample.nframes
+
+        env_curve = self.envelope.over_range(self.position, frame_count)
+
+        l = np.roll(self.sample.left_data, -abs_pos)[:frame_count]*env_curve
+        r = np.roll(self.sample.right_data, -abs_pos)[:frame_count]*env_curve
+
+        self.position += frame_count
+
+        return l,r
+
+    def note_off(self) -> None:
+        self.envelope.set_release_start(self.position)
 
 
 class AudioSystem():
@@ -58,6 +82,7 @@ class AudioSystem():
         self.channels = channels
         self.dtype = dtype
         self.playingsounds = {}
+        self.next_sound_id = 0
 
     def start(self):
         sd = sounddevice.OutputStream(
@@ -75,16 +100,17 @@ class AudioSystem():
         r = np.zeros(frame_count, np.float32)
 
         for s in list(self.playingsounds.values()):
-            env = s.envelope.subpath(frame_count)
-            l += np.roll(s.sample.left_data, -s.absolute_position())[:frame_count]*env
-            r += np.roll(s.sample.right_data, -s.absolute_position())[:frame_count]*env
-            s.pos += frame_count
+            lw, rw = s.over_range(frame_count)
+            l += lw
+            r += rw
 
             if s.complete():
-                self.playingsounds.pop(str(s))
+                self.playingsounds.pop(s.id)
 
         stereo = np.ravel(np.stack((l, r)), order='F')
         outdata[:] = stereo.reshape(outdata.shape)
 
     def play(self, sound: Sound):
-        self.playingsounds[str(sound)] = sound
+        self.next_sound_id += 1
+        sound.id = self.next_sound_id
+        self.playingsounds[sound.id] = sound
