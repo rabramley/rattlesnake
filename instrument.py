@@ -22,8 +22,8 @@ class Instrument:
         
             result[note] = SampleFile(str(f), note)
         return result
-
-    def note_on(self, note: int, velocity: int) -> None:
+    
+    def _get_sample_file(self, note: int) -> SampleFile:
         keys = sorted(list(self.sample_files.keys()))
         ind = bisect_left(keys, note)
 
@@ -40,7 +40,10 @@ class Instrument:
             else:
                 sample_note = keys[ind-1]
         
-        sample = Sample(self.sample_files[sample_note], note)
+        return Sample(self.sample_files[sample_note], note)
+
+    def note_on(self, note: int, velocity: int) -> None:
+        sample = self._get_sample_file(note)
         envelope = Envelope(velocity, self.audio_system.samplerate * 0.01, self.audio_system.samplerate * 0.05, 0.5, self.audio_system.samplerate * 0.5, self.audio_system.samplerate * 4)
         self.audio_system.play(Sound(sample, envelope))
 
