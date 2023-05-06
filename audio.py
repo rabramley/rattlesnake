@@ -34,10 +34,9 @@ class Envelope:
 
 
 class PlayingSound:
-    def __init__(self, note, sound, envelope):
+    def __init__(self, sound, envelope):
         self.sound = sound
         self.envelope = envelope
-        self.note = note
         self.pos = 0
     
     def absolute_position(self):
@@ -45,6 +44,9 @@ class PlayingSound:
     
     def complete(self):
         return self.envelope.complete()
+    
+    def __str__(self) -> str:
+        return f"PlayingSound({self.sound})"
 
 
 class AudioSystem():
@@ -78,13 +80,11 @@ class AudioSystem():
             s.pos += frame_count
 
             if s.complete():
-                self.playingsounds.pop(s.note)
+                self.playingsounds.pop(str(s))
 
         stereo = np.ravel(np.stack((l, r)), order='F')
         outdata[:] = stereo.reshape(outdata.shape)
 
-    def unplay(self, note):
-        self.playingsounds.pop(note)
-
-    def play(self, sound, note, velocity):
-        self.playingsounds[note] = PlayingSound(note, sound, Envelope(velocity, self.samplerate * 0.01, self.samplerate * 0.05, 0.5, self.samplerate * 0.5, self.samplerate * 4))
+    def play(self, sound, velocity):
+        np = PlayingSound(sound, Envelope(velocity, self.samplerate * 0.01, self.samplerate * 0.05, 0.5, self.samplerate * 0.5, self.samplerate * 4))
+        self.playingsounds[str(np)] = np

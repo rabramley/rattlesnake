@@ -25,7 +25,6 @@ class Instrument:
 
     def note_on(self, note: int, velocity: int) -> None:
         keys = sorted(list(self.sample_files.keys()))
-        print(keys)
         ind = bisect_left(keys, note)
 
         if ind == 0:
@@ -41,11 +40,8 @@ class Instrument:
             else:
                 sample_note = keys[ind-1]
         
-        print(note)
-        print(sample_note)
-
         sample = Sample(self.sample_files[sample_note], note)
-        self.audio_system.play(sample, note, velocity)
+        self.audio_system.play(sample, velocity)
 
     def note_off(self, note: int) -> None:
         pass
