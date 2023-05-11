@@ -8,6 +8,8 @@
 
 cffi==1.15.1
     # via sounddevice
+cython==0.29.34
+    # via -r requirements.in
 numpy==1.24.3
     # via -r requirements.in
 pycparser==2.21

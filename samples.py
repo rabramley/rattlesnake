@@ -3,6 +3,7 @@ import wave
 import numpy as np
 from chunk import Chunk
 import struct
+from audio_utils import repitch_sample, split_stereo_to_mono
 
 
 class waveread(wave.Wave_read):
@@ -72,23 +73,22 @@ class SampleFile:
             self.loop = -1
             self.nframes = wf.getnframes()
         
-        self.set_data(wf.readframes(self.nframes))
+        self.set_data(wf.readframes(self.nframes), self.nframes)
         
         wf.close()
 
-    def set_data(self, data):
+    def set_data(self, data, nframes):
         if self.sample_width != 2:
             # For sample width of 3
             raise Exception(f"Only support 16 bit samples at the minute.  This file has a sample with of {self.sample_width}")
 
-        data = np.frombuffer(data, dtype=np.int16)
-
         if self.channels == 2:
-            self.left_data = np.array(data[::2], np.float32)
-            self.right_data = np.array(data[1::2], np.float32)
+            self.left_data, self.right_data = split_stereo_to_mono(np.array(np.frombuffer(data, dtype=np.int16), np.float32))
         elif self.channels == 1:
-            self.left_data = np.array(data, np.float32)
-            self.right_data = np.array(data, np.float32)
+            data = np.frombuffer(data, dtype=np.int16)
+
+            self.left_data = data
+            self.right_data = data
         else:
             raise Exception(f"Only support 1 or 2 channel audio samples, not {self.channels}")
 
@@ -102,17 +102,14 @@ class Sample:
             self.left_data = self.sample_file.left_data
             self.right_data = self.sample_file.right_data
         else:
-            # Linear interpolation to alter sample pitch
-            factor = pow(2, ((self.midinote - self.sample_file.samplenote)/12))
-            self.left_data = np.array(np.interp(
-                [i*factor for i in range(1, int(self.sample_file.nframes/factor))],
-                range(1, self.sample_file.nframes),
+            self.left_data = repitch_sample(
                 self.sample_file.left_data,
-            ), np.float32)
-            self.right_data = np.array(np.interp(
-                [i*factor for i in range(1, int(self.sample_file.nframes/factor))],
-                range(1, self.sample_file.nframes),
+                self.sample_file.samplenote,
+                self.midinote,
+            )
+            self.right_data = repitch_sample(
                 self.sample_file.right_data,
-            ), np.float32)
-
+                self.sample_file.samplenote,
+                self.midinote,
+            )
         self.nframes = len(self.right_data)

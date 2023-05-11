@@ -4,50 +4,62 @@ import sounddevice
 from samples import Sample
 
 
-class Envelope:
+class EnvelopeFactory:
     # Refactor so that an envelope is only a view on the
     # a shared envelope for the instrument
-    def __init__(self, velocity, attack, decay, sustain, release):
-        self.velocity = velocity
-        self.velocity_gain = self.velocity / 127
+    def __init__(self, attack, decay, sustain, release, audio_system):
         self.attack = attack
         self.decay = decay
         self.sustain = sustain
         self.release = release
+
+        self._ad = int(self.attack + self.decay)
+
+        self._prerelease = np.array(np.interp(
+            range(0, self._ad + audio_system.blocksize),
+            [0, self.attack, self._ad],
+            [0.0, 1.0, self.sustain],
+        ), np.float16)
+        self._sustain = np.array(np.interp(
+            range(0, audio_system.blocksize),
+            [0],
+            [self.sustain],
+        ), np.float16)
+        self._release = np.array(np.interp(
+            range(0, self.release + audio_system.blocksize),
+            [0, self.release],
+            [self.sustain, 0.0],
+        ), np.float16)
+
+    def get_envelope(self, velocity):
+        return Envelope(self, velocity)
+
+
+class Envelope:
+    def __init__(self, factory, velocity):
+        self.factory = factory
+        self.velocity = velocity
+        self.velocity_gain = self.velocity / 127
         self.release_start_position = -1
         self.release_end_position = -1
-
-        self._ad = self.attack + self.decay
-
-    def set_release_start(self, position):
-        self.release_start_position = position
-        self.release_end_position = position + self.release
 
     def over_range(self, position, frame_count):
         end = position + frame_count
 
         if self.release_start_position < 0:
-            return self._pre_release_over_range(position, end)
+            if position < self.factory._ad:
+                return self.factory._prerelease[position:end] * self.velocity_gain
+            else:
+                return self.factory._sustain * self.velocity_gain
         else:
-            return self._post_release_over_range(position, end)
+            return self.factory._release[position - self.release_start_position:end - self.release_start_position] * self.velocity_gain
     
-    def _pre_release_over_range(self, start, end):
-        return np.array(np.interp(
-            range(start, end),
-            [0, self.attack, self._ad],
-            [0.0, self.velocity_gain, self.sustain * self.velocity_gain],
-        ), np.float32)
-
-    def _post_release_over_range(self, start, end):
-        return np.array(np.interp(
-            range(start, end),
-            [self.release_start_position, self.release_end_position],
-            [self.sustain * self.velocity_gain, 0.0],
-        ), np.float32)
+    def set_release_start(self, position):
+        self.release_start_position = position
+        self.release_end_position = position + self.factory.release
 
     def complete_at(self, position):
-        return self.release_start_position >= 0 and position - self.release_start_position >= self.release
-
+        return self.release_start_position >= 0 and position - self.release_start_position >= self.factory.release
 
 class Sound:
     def __init__(self, sample: Sample, envelope: Envelope):
@@ -98,14 +110,18 @@ class AudioSystem():
     def __call__(self, outdata, frame_count, time_info, status):
         l = np.zeros(frame_count, np.float32)
         r = np.zeros(frame_count, np.float32)
+        completed = []
 
-        for s in list(self.playingsounds.values()):
+        for i, s in enumerate(list(self.playingsounds.values())):
             lw, rw = s.over_range(frame_count)
             l += lw
             r += rw
 
             if s.complete():
-                self.playingsounds.pop(s.id)
+                completed.append(s)
+
+        for c in completed:
+            self.playingsounds.pop(c.id)
 
         stereo = np.ravel(np.stack((l, r)), order='F')
         outdata[:] = stereo.reshape(outdata.shape)
