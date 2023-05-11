@@ -1,6 +1,7 @@
 import cython
 import numpy
 cimport numpy
+from cython.parallel import prange
 
 
 def repitch_sample(numpy.ndarray input, int original_note, int required_note):
@@ -13,9 +14,9 @@ def repitch_sample(numpy.ndarray input, int original_note, int required_note):
 
     cdef Py_ssize_t i
     cdef int before, after
-    cdef float exact_point, before_value, after_value
+    cdef float exact_point, before_value, after_value, diff,t
 
-    for i in range(values_in_output):
+    for i in prange(values_in_output, nogil=True):
         exact_point = i * inv_factor
         before = <int> exact_point
         after = before + 1
@@ -24,8 +25,10 @@ def repitch_sample(numpy.ndarray input, int original_note, int required_note):
         after_value = input_data[after]
 
         t = exact_point - before
+        diff = after_value - before_value
+        diff = diff * t
 
-        output_data[i] = before_value + t * (after_value - before_value)
+        output_data[i] = before_value + diff
     
     return output
 
@@ -40,8 +43,8 @@ def split_stereo_to_mono(numpy.ndarray input):
 
     cdef Py_ssize_t i
 
-    for i in range(ninput):
-        left_data[i] = input[i*2]
-        right_data[i] = input[i*2+1]
+    for i in prange(ninput, nogil=True):
+        left_data[i] = input_data[i*2]
+        right_data[i] = input_data[i*2+1]
 
     return left, right
