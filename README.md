@@ -15,7 +15,9 @@ sudo python3 setup.py build_ext --inplace
  - [ ] Sample - note and velocity
  - [ ] Envelope
  - [ ] Loop - start, end
+ - [ ] One shot
 - [ ] Panning
+- [ ] polyphonic lesser volume
 
 ### Kits
 - [ ] Sample per note
@@ -39,8 +41,12 @@ sudo python3 setup.py build_ext --inplace
  - [x] Linear
  - [ ] Exponential
 
+### Config
+- [ ] MIDI input port
+- [ ] Audio interface
+
 ### MIDI
-- [ ] Plays notes on midi note down
+- [x] Plays notes on midi note on
 - [ ] Channels per instrument
 
 ### Channels
@@ -53,4 +59,4 @@ sudo python3 setup.py build_ext --inplace
  - [ ] Cythonize
 - [ ] Playback
  - [ ] Cythonize
-- [ ] Multicore OpenMP: https://cython.readthedocs.io/en/latest/src/userguide/parallelism.html
+- [x] Multicore OpenMP: https://cython.readthedocs.io/en/latest/src/userguide/parallelism.html
