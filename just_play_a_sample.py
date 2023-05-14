@@ -21,7 +21,7 @@ saw_synth = Instrument(audio, Path('data/saw/'))
 
 vel = 100
 
-for i in range(4):
+for i in range(1):
     # saw_synth.note_on(38, vel)
     saw_synth.note_on(66, vel)
     saw_synth.note_on(57, vel)

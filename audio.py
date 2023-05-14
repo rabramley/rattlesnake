@@ -43,7 +43,7 @@ class Envelope:
         self.release_start_position = -1
         self.release_end_position = -1
 
-    def over_range(self, position, frame_count):
+    def get_block(self, position: int, frame_count: int) -> np.ndarray:
         end = position + frame_count
 
         if self.release_start_position < 0:
@@ -70,17 +70,16 @@ class Sound:
     def complete(self):
         return self.envelope.complete_at(self.position)
     
-    def over_range(self, frame_count) -> tuple[np.ndarray, np.ndarray]:
+    def next_block(self, frame_count: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         abs_pos =  self.position % self.sample.nframes
 
-        env_curve = self.envelope.over_range(self.position, frame_count)
-
-        l = np.roll(self.sample.left_data, -abs_pos)[:frame_count]*env_curve
-        r = np.roll(self.sample.right_data, -abs_pos)[:frame_count]*env_curve
+        env_block = self.envelope.get_block(self.position, frame_count)
+        l_block = np.roll(self.sample.left_data, -abs_pos)[:frame_count]
+        r_block = np.roll(self.sample.right_data, -abs_pos)[:frame_count]
 
         self.position += frame_count
 
-        return l,r
+        return l_block, r_block, env_block
 
     def note_off(self) -> None:
         self.envelope.set_release_start(self.position)
@@ -113,9 +112,9 @@ class AudioSystem():
         completed = []
 
         for i, s in enumerate(list(self.playingsounds.values())):
-            lw, rw = s.over_range(frame_count)
-            l += lw
-            r += rw
+            lw, rw, env = s.next_block(frame_count)
+            l += lw * env
+            r += rw * env
 
             if s.complete():
                 completed.append(s)

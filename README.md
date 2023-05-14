@@ -17,7 +17,7 @@ sudo python3 setup.py build_ext --inplace
  - [ ] Loop - start, end
  - [ ] One shot
 - [ ] Panning
-- [ ] polyphonic lesser volume
+- [ ] polyphonic output compression - https://www.youtube.com/watch?v=2yzUDWDJYNs
 
 ### Kits
 - [ ] Sample per note
