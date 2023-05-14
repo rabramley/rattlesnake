@@ -48,3 +48,29 @@ def split_stereo_to_mono(numpy.ndarray input):
         right_data[i] = input_data[i*2+1]
 
     return left, right
+
+
+def mix_sounds(list playingsounds, int frame_count, numpy.ndarray output):
+    cdef short* output_data = <short *> (output.data)
+    cdef numpy.ndarray l, r, env
+    cdef float* l_data
+    cdef float* r_data
+    cdef float* env_data
+    cdef numpy.ndarray buff = numpy.zeros(frame_count * 2, numpy.float32)
+    cdef float* buff_data = <float *> (buff.data)
+
+    cdef Py_ssize_t i
+
+    for s in playingsounds:
+        l, r, env = s.next_block(frame_count)
+
+        l_data = <float *> (l.data)
+        r_data = <float *> (r.data)
+        env_data = <float *> (env.data)
+
+        for i in prange(frame_count, nogil=True):
+            buff_data[i*2] += l_data[i] * env_data[i]
+            buff_data[i*2+1] += r_data[i] * env_data[i]
+
+    for i in prange(frame_count * 2, nogil=True):
+        output_data[i] = <short> buff_data[i]

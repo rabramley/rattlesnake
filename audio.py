@@ -2,6 +2,7 @@ from config import *
 import numpy as np
 import sounddevice
 from samples import Sample
+from audio_utils import mix_sounds
 
 
 class EnvelopeFactory:
@@ -19,17 +20,17 @@ class EnvelopeFactory:
             range(0, self._ad + audio_system.blocksize),
             [0, self.attack, self._ad],
             [0.0, 1.0, self.sustain],
-        ), np.float16)
+        ), np.float32)
         self._sustain = np.array(np.interp(
             range(0, audio_system.blocksize),
             [0],
             [self.sustain],
-        ), np.float16)
+        ), np.float32)
         self._release = np.array(np.interp(
             range(0, self.release + audio_system.blocksize),
             [0, self.release],
             [self.sustain, 0.0],
-        ), np.float16)
+        ), np.float32)
 
     def get_envelope(self, velocity):
         return Envelope(self, velocity)
@@ -73,7 +74,7 @@ class Sound:
     def next_block(self, frame_count: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         abs_pos =  self.position % self.sample.nframes
 
-        env_block = self.envelope.get_block(self.position, frame_count)
+        env_block = np.asarray(self.envelope.get_block(self.position, frame_count))
         l_block = np.roll(self.sample.left_data, -abs_pos)[:frame_count]
         r_block = np.roll(self.sample.right_data, -abs_pos)[:frame_count]
 
@@ -107,23 +108,16 @@ class AudioSystem():
         sd.start()
 
     def __call__(self, outdata, frame_count, time_info, status):
-        l = np.zeros(frame_count, np.float32)
-        r = np.zeros(frame_count, np.float32)
+        mix_sounds(list(self.playingsounds.values()), frame_count, outdata)
+
         completed = []
 
-        for i, s in enumerate(list(self.playingsounds.values())):
-            lw, rw, env = s.next_block(frame_count)
-            l += lw * env
-            r += rw * env
-
+        for s in list(self.playingsounds.values()):
             if s.complete():
                 completed.append(s)
 
         for c in completed:
             self.playingsounds.pop(c.id)
-
-        stereo = np.ravel(np.stack((l, r)), order='F')
-        outdata[:] = stereo.reshape(outdata.shape)
 
     def play(self, sound: Sound):
         self.next_sound_id += 1
