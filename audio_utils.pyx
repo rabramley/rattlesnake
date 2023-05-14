@@ -2,6 +2,7 @@ import cython
 import numpy
 cimport numpy
 from cython.parallel import prange
+from libc.math cimport atan, pi
 
 
 def repitch_sample(numpy.ndarray input, int original_note, int required_note):
@@ -58,6 +59,8 @@ def mix_sounds(list playingsounds, int frame_count, numpy.ndarray output):
     cdef float* env_data
     cdef numpy.ndarray buff = numpy.zeros(frame_count * 2, numpy.float32)
     cdef float* buff_data = <float *> (buff.data)
+    cdef double FACTORA = 16383
+    cdef double FACTORB = 65535/pi
 
     cdef Py_ssize_t i
 
@@ -73,4 +76,4 @@ def mix_sounds(list playingsounds, int frame_count, numpy.ndarray output):
             buff_data[i*2+1] += r_data[i] * env_data[i]
 
     for i in prange(frame_count * 2, nogil=True):
-        output_data[i] = <short> buff_data[i]
+        output_data[i] = <short> (atan(buff_data[i]/FACTORA) * FACTORB)

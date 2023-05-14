@@ -2,3 +2,5 @@ python-rtmidi
 numpy
 sounddevice
 cython
+pandas
+matplotlib
