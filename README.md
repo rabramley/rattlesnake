@@ -32,6 +32,11 @@ sudo python3 setup.py build_ext --inplace
  - [x] 16 bit
  - [ ] 24 bit
 
+### Manipulations
+- [ ] Morph between 2 samples
+- [ ] Add noise
+- [ ] Low / high pass filter
+
 ### Envelopes
 - [ ] Types
  - [x] ADSR
@@ -57,6 +62,6 @@ sudo python3 setup.py build_ext --inplace
 ### Optimization
 - [ ] Envelopes
  - [ ] Cythonize
-- [ ] Playback
- - [ ] Cythonize
+- [x] Playback
+ - [x] Cythonize
 - [x] Multicore OpenMP: https://cython.readthedocs.io/en/latest/src/userguide/parallelism.html
