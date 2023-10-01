@@ -133,22 +133,38 @@ cdef class Envelope:
         self.last_volume = 0.0
 
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.nonecheck(False)
+    @cython.cdivision(True)
     cdef apply_envelope(self, int position, int frame_count, float* frame):
         cdef float volume = 0
         cdef Py_ssize_t i
         cdef int i_pos
+        cdef int attack_end = self.attack_end
+        cdef float attack_gradient = self.attack_gradient
+        cdef int decay_end = self.decay_end
+        cdef float decay_gradient = self.decay_gradient
+        cdef bint not_released = not self.is_released
+        cdef float sustain_level = self.sustain_level
+        cdef int release_end = self.release_end
+        cdef int release_start_position = self.release_start_position
+        cdef float release_gradient = self.release_gradient
 
         for i in range(frame_count):
             i_pos = i + position
 
-            if i_pos < self.attack_end:
-                volume = i_pos * self.attack_gradient
-            elif i_pos < self.decay_end:
-                volume = 1 - ((i_pos - self.attack_end) * self.decay_gradient)
-            elif not self.is_released:
-                volume = self.sustain_level
-            elif i_pos < self.release_end:
-                volume = 1 - ((i_pos - self.release_start_position) * self.release_gradient)
+
+            # If statement for killed?
+
+            if i_pos < attack_end:
+                volume = i_pos * attack_gradient
+            elif i_pos < decay_end:
+                volume = 1 - ((i_pos - attack_end) * decay_gradient)
+            elif not_released:
+                volume = sustain_level
+            elif i_pos < release_end:
+                volume = 1 - ((i_pos - release_start_position) * release_gradient)
             else:
                 volume = 0.0
             
@@ -199,21 +215,29 @@ cdef class Sound:
     def get_note(self):
         return self.note
     
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.nonecheck(False)
+    @cython.cdivision(True)
     cdef set_frame(self, int frame_count, float* frame):
         cdef Py_ssize_t i
+        cdef int sample_position = self.sample_position
+        cdef int sample_length = self.sample_length
+        cdef float velocity_gain = self.velocity_gain
         cdef float* sample_data = <float *> (self.sample.data)
 
         for i in range(frame_count):
-            if self.sample_position >= self.sample_length:
-                self.sample_position = 0 
+            if sample_position >= sample_length:
+                sample_position = 0 
 
-            frame[i] = sample_data[self.sample_position] * self.velocity_gain
+            frame[i] = sample_data[sample_position] * velocity_gain
 
-            self.sample_position += 1
+            sample_position += 1
 
         self.envelope.apply_envelope(self.position, frame_count, frame)
 
         self.position += frame_count
+        self.sample_position = sample_position
 
     def note_off(self) -> None:
         self.envelope.set_release_start(self.position)

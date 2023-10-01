@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 
 
-audio = AudioSystem(device=2, blocksize=32)
+audio = AudioSystem(device=2, blocksize=8)
 try:
     audio.start()
     print('Audio system started')
